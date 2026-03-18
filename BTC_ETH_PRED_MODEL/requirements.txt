@@ -1,9 +1,0 @@
-streamlit==1.55.0
-pandas
-numpy
-plotly
-scikit-learn
-tensorflow==2.21.0
-yfinance
-ta
-joblib
