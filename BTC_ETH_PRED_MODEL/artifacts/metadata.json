@@ -1,0 +1,57 @@
+{
+  "model_name": "GRU",
+  "target": "next_day_log_close_price",
+  "window": 7,
+  "feature_columns": [
+    "Eth_Close",
+    "Eth_Volume",
+    "Eth_Return",
+    "Eth_MA_7",
+    "Eth_RSI_14",
+    "Eth_MACD",
+    "Eth_Volatility_7",
+    "Eth_Range_Pct",
+    "Eth_Close_Lag1",
+    "Eth_Close_Lag3",
+    "Eth_Close_Lag7",
+    "Eth_ret_lag1",
+    "Eth_ret_lag3",
+    "Eth_ret_lag7",
+    "Eth_Range_Pct_Lag1",
+    "Eth_Range_Pct_Lag3",
+    "Eth_Range_Pct_Lag7",
+    "Gold_ret_lag1",
+    "Gold_ret_lag3",
+    "Gold_ret_lag7",
+    "USDIndex_ret_lag1",
+    "USDIndex_ret_lag3",
+    "USDIndex_ret_lag7",
+    "SNP500_ret_lag1",
+    "SNP500_ret_lag3",
+    "SNP500_ret_lag7"
+  ],
+  "train_start": "2023-03-27",
+  "train_end": "2026-02-27",
+  "last_training_feature_date": "2026-02-27",
+  "n_rows_after_dropna": 1069,
+  "split_info": {
+    "n_obs": 1069,
+    "train_end": 748,
+    "val_end": 908,
+    "window": 7
+  },
+  "metrics": {
+    "mae_log": 0.03499075025320053,
+    "rmse_log": 0.046353240229335395,
+    "mape_log": 0.43684276938438416,
+    "r2_log": 0.9620939493179321,
+    "mae_price": 110.35931396484375,
+    "rmse_price": 147.13482337638496,
+    "mape_price": 3.523444414138794,
+    "r2_price": 0.9574477672576904
+  },
+  "notes": {
+    "model_source": "saved directly from notebook",
+    "scenario": "Input adalah 7 hari terakhir fitur ETH + makro lagged, output adalah log harga close hari berikutnya."
+  }
+}
