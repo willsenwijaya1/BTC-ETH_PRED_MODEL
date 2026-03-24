@@ -82,7 +82,7 @@ def _clean_downloaded_df(df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.get_level_values(0)
 
     df = df.drop(
-        columns=["Dividends", "Stock Splits", "Capital Gains"],
+        columns=["Adj Close","Dividends", "Stock Splits", "Capital Gains"],
         errors="ignore",
     )
 
