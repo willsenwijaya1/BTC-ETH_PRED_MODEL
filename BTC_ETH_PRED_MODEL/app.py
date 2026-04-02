@@ -122,7 +122,7 @@ else:
     st.warning("Forecast terbaru belum bisa dibuat. Tab histori dan info model tetap tersedia.")
 
 
-tab1, tab2, tab3 = st.tabs([f"Forecast {asset_label}", f"Backtest {asset_label}", "Model Info"])
+tab1, tab2, tab3 = st.tabs([f"Forecast {asset_label}", f"Log History {asset_label}", "Model Info"])
 
 with tab1:
     st.subheader(f"Prediksi terbaru {asset_label}")
