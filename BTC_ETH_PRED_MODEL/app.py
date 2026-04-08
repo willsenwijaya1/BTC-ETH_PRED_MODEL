@@ -178,16 +178,6 @@ with tab2:
     history_df = load_prediction_history(PRED_LOG_PATH)
 
     if not history_df.empty:
-        fig_hist = go.Figure()
-        fig_hist.add_trace(go.Scatter(
-            x=history_df["prediction_for_date"],
-            y=history_df["pred_close_price"],
-            mode="lines+markers",
-            name=f"Predicted {asset_label} Close",
-        ))
-        fig_hist.update_layout(height=500, xaxis_title="Date", yaxis_title="Price (USD)")
-        st.plotly_chart(fig_hist, use_container_width=True)
-
         st.dataframe(
             history_df.sort_values("logged_at", ascending=False),
             use_container_width=True,
