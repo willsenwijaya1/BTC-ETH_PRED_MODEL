@@ -1,0 +1,39 @@
+{
+  "model_name": "GRU",
+  "target": "next_day_log_close_price",
+  "window": 7,
+  "feature_columns": [
+    "Eth_Close",
+    "Eth_Volume",
+    "Eth_Return",
+    "Eth_MA_7",
+    "Eth_RSI_14",
+    "Eth_MACD",
+    "Eth_Volatility_7",
+    "Eth_Range_Pct",
+    "Eth_Close_Lag1",
+    "Eth_Close_Lag3",
+    "Eth_Close_Lag7",
+    "Eth_ret_lag1",
+    "Eth_ret_lag3",
+    "Eth_ret_lag7",
+    "Eth_Range_Pct_Lag1",
+    "Eth_Range_Pct_Lag3",
+    "Eth_Range_Pct_Lag7"
+  ],
+  "train_start": "2023-03-27",
+  "train_end": "2026-02-27",
+  "last_training_feature_date": "2026-02-27",
+  "n_rows_after_dropna": 1069,
+  "split_info": {
+    "n_obs": 1069,
+    "train_end": 855,
+    "val_end": 962,
+    "window": 7
+  },
+  "metrics": {
+    "mae": 84.26078796386719,
+    "rmse": 112.05123165599296,
+    "mape": 3.189239978790283
+  }
+}
