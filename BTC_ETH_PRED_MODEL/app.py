@@ -69,7 +69,6 @@ ARTIFACTS_DIR = get_artifacts_dir(asset)
 PRED_LOG_PATH = get_prediction_log_path(ARTIFACTS_DIR, asset)
 
 st.title(f"{asset_label} Daily Forecast")
-st.caption(f"Prediksi next-day close price {asset_label} berbasis model GRU.")
 
 try:
     artifacts = get_artifacts(asset)
@@ -77,11 +76,16 @@ except Exception as exc:
     st.error(f"Artifacts model untuk {asset_label} belum ada atau belum cocok.")
     st.exception(exc)
     st.stop()
+    
+model_display_name = artifacts.metadata.get("model_name", "Model")
+model_type = artifacts.metadata.get("model_type", "").lower()
 
+st.caption(
+    f"Prediksi next-day close price {asset_label} berbasis model {model_display_name}."
+)
 with st.sidebar:
-    st.write("**Model utama:** GRU")
+    st.write(f"**Model utama:** {model_display_name}")
     st.write(f"**Asset aktif:** {asset_label}")
-    st.write(f"**Window:** {artifacts.metadata.get('window', 7)} hari")
     st.write(f"**Jumlah fitur:** {len(artifacts.metadata.get('feature_columns', get_feature_columns(asset)))}")
     
 
@@ -128,11 +132,17 @@ with tab1:
         st.exception(forecast_error)
 
     elif forecast is not None and df_features is not None:
-        st.write(
-            f"Model membaca window fitur dari **{forecast['latest_window'].index.min().date()}** "
-            f"sampai **{forecast['latest_window'].index.max().date()}**, "
-            f"lalu memprediksi close **{asset_label}** untuk **{prediction_for_date}**."
-        )
+        if model_type == "xgboost":
+            st.write(
+                f"Model membaca fitur terbaru pada **{forecast['latest_window'].index.max().date()}**, "
+                f"lalu memprediksi close **{asset_label}** untuk **{prediction_for_date}**."
+            )
+        else:
+            st.write(
+                f"Model membaca window fitur dari **{forecast['latest_window'].index.min().date()}** "
+                f"sampai **{forecast['latest_window'].index.max().date()}**, "
+                f"lalu memprediksi close **{asset_label}** untuk **{prediction_for_date}**."
+            )
 
         close_col = forecast["close_col"]
         chart_df = df_features[[close_col]].tail(120).copy()
@@ -153,17 +163,23 @@ with tab1:
         fig.update_layout(height=500, xaxis_title="Date", yaxis_title="Price (USD)")
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("Window input terakhir")
-        st.dataframe(
-            forecast["latest_window"].tail(artifacts.metadata.get("window", 7)).style.format(precision=4),
-            use_container_width=True,
-        )
+        if model_type == "xgboost":
+            st.subheader("Fitur input terbaru")
+            display_input = forecast["latest_window"].tail(1)
+        else:
+            st.subheader("Window input terakhir")
+            display_input = forecast["latest_window"].tail(artifacts.metadata.get("window", 7))
+
+st.dataframe(
+    display_input.style.format(precision=4),
+    use_container_width=True,
+)
 
         if st.button(f"Simpan prediksi {asset_label} ke log historis"):
             saved = append_prediction_history(
                 log_path=PRED_LOG_PATH,
                 forecast=forecast,
-                model_name=artifacts.metadata.get("model_name", f"GRU-{asset_label}"),
+                model_name=artifacts.metadata.get("model_name", f"Model-{asset_label}"),
             )
             if saved:
                 st.success(f"Prediksi {asset_label} berhasil disimpan ke log historis.")
@@ -208,7 +224,3 @@ with tab3:
 
     st.markdown("**Fitur model**")
     st.code("\n".join(artifacts.metadata.get("feature_columns", get_feature_columns(asset))))
-
-    st.caption(
-        "Catatan: app ini diasumsikan menggunakan daily bar yang sudah close. Untuk deployment produksi, retrain model secara berkala dan simpan ulang artifacts asset terkait sebelum redeploy."
-    )
