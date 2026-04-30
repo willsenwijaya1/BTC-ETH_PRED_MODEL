@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
+from typing import Any
+from xgboost import XGBRegressor
 
 import joblib
 import time
@@ -49,7 +51,7 @@ PREDICTION_LOG_COLUMNS = [
 
 @dataclass
 class Artifacts:
-    model: keras.Model
+    model: Any
     scaler: MinMaxScaler
     metadata: Dict
 
@@ -289,10 +291,15 @@ def build_feature_frame(
 
 def load_artifacts(artifacts_dir: str | Path, asset: str) -> Artifacts:
     artifacts_path = Path(artifacts_dir)
+    asset_key = asset.lower()
 
-    model_path = artifacts_path / f"gru_{asset}_next_log_price.keras"
-    scaler_path = artifacts_path / "minmax_scaler.pkl"
     meta_path = artifacts_path / "metadata.json"
+    scaler_path = artifacts_path / "minmax_scaler.pkl"
+
+    if asset_key == "btc":
+        model_path = artifacts_path / "xgboost_btc_next_log_price.json"
+    else:
+        model_path = artifacts_path / f"gru_{asset_key}_next_log_price.keras"
 
     if not model_path.exists():
         raise FileNotFoundError(f"Model belum ditemukan: {model_path}")
@@ -301,10 +308,18 @@ def load_artifacts(artifacts_dir: str | Path, asset: str) -> Artifacts:
     if not meta_path.exists():
         raise FileNotFoundError(f"Metadata belum ditemukan: {meta_path}")
 
-    model = keras.models.load_model(model_path)
-    scaler = joblib.load(scaler_path)
     with open(meta_path, "r", encoding="utf-8") as f:
         metadata = json.load(f)
+
+    if asset_key == "btc":
+        model = XGBRegressor()
+        model.load_model(model_path)
+        metadata["model_type"] = "xgboost"
+    else:
+        model = keras.models.load_model(model_path)
+        metadata["model_type"] = "gru"
+
+    scaler = joblib.load(scaler_path)
 
     return Artifacts(model=model, scaler=scaler, metadata=metadata)
 
@@ -327,6 +342,24 @@ def build_latest_sequence(
     latest_sequence = np.expand_dims(latest_scaled.astype(np.float32), axis=0)
     return latest_sequence, latest
 
+def build_latest_xgboost_input(
+    df_features: pd.DataFrame,
+    feature_columns: List[str],
+    window: int = WINDOW,
+) -> Tuple[np.ndarray, pd.DataFrame]:
+    missing_cols = [col for col in feature_columns if col not in df_features.columns]
+    if missing_cols:
+        raise ValueError(f"Kolom fitur hilang: {missing_cols}")
+
+    if len(df_features) < 1:
+        raise ValueError("Data fitur kosong, belum bisa membuat input XGBoost.")
+
+    latest_window_df = df_features[feature_columns].tail(window).copy()
+    latest_row = df_features[feature_columns].tail(1).copy()
+
+    xgb_input = latest_row.values.astype(np.float32)
+
+    return xgb_input, latest_window_df
 
 def predict_next_close_from_latest(
     artifacts: Artifacts,
@@ -338,13 +371,25 @@ def predict_next_close_from_latest(
     feature_columns = artifacts.metadata.get("feature_columns", get_feature_columns(asset_key))
     window = int(artifacts.metadata.get("window", WINDOW))
 
-    latest_sequence, latest_window_df = build_latest_sequence(
-        df_features=df_features,
-        scaler=artifacts.scaler,
-        feature_columns=feature_columns,
-        window=window,
-    )
-    pred_log = float(artifacts.model.predict(latest_sequence, verbose=0).reshape(-1)[0])
+    if asset_key == "btc":
+        xgb_input, latest_window_df = build_latest_xgboost_input(
+            df_features=df_features,
+            feature_columns=feature_columns,
+            window=window,
+        )
+
+        pred_log = float(artifacts.model.predict(xgb_input).reshape(-1)[0])
+
+    else:
+        latest_sequence, latest_window_df = build_latest_sequence(
+            df_features=df_features,
+            scaler=artifacts.scaler,
+            feature_columns=feature_columns,
+            window=window,
+        )
+
+        pred_log = float(artifacts.model.predict(latest_sequence, verbose=0).reshape(-1)[0])
+
     pred_price = float(np.exp(pred_log))
 
     close_col = f"{prefix}_Close"
@@ -363,7 +408,6 @@ def predict_next_close_from_latest(
         "pred_change_pct": pct_change,
         "latest_window": latest_window_df,
     }
-
 
 def get_prediction_log_path(log_path_or_dir: str | Path, asset: str) -> Path:
     base_path = Path(log_path_or_dir)
