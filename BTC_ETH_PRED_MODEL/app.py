@@ -170,10 +170,10 @@ with tab1:
             st.subheader("Window input terakhir")
             display_input = forecast["latest_window"].tail(artifacts.metadata.get("window", 7))
 
-st.dataframe(
-    display_input.style.format(precision=4),
-    use_container_width=True,
-)
+        st.dataframe(
+            display_input.style.format(precision=4),
+            use_container_width=True,
+        )
 
         if st.button(f"Simpan prediksi {asset_label} ke log historis"):
             saved = append_prediction_history(
