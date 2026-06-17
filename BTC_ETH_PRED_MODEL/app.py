@@ -193,7 +193,7 @@ with tab2:
 
     history_df = load_prediction_history_db(asset)
 
-if not history_df.empty:
+    if not history_df.empty:
 
     history_chart = history_df.sort_values(
         "prediction_for_date"
