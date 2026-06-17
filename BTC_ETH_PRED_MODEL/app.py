@@ -107,6 +107,7 @@ try:
             f"Model-{asset.upper()}"
     )
 )
+    )
 
     save_prediction_to_db(
         forecast,
