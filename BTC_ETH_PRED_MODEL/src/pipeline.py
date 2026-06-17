@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import pyodbc
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,7 +47,96 @@ PREDICTION_LOG_COLUMNS = [
     "pred_close_price",
     "pred_change_pct",
 ]
+DB_TABLE = "BTC_ETH_PREDICTION_HISTORY"
 
+def get_db_connection():
+    return pyodbc.connect(
+        r"DRIVER={ODBC Driver 17 for SQL Server};"
+        r"SERVER=LAPTOP-1TS61SPB\SQLEXPRESS;"
+        r"DATABASE=BTC_ETH_PREDICTION;"
+        r"Trusted_Connection=yes;"
+    )
+    
+def load_prediction_history_db(asset: str) -> pd.DataFrame:
+    conn = get_db_connection()
+
+    query = f"""
+        SELECT *
+        FROM {DB_TABLE}
+        WHERE asset = ?
+        ORDER BY prediction_for_date DESC
+    """
+
+    df = pd.read_sql(
+        query,
+        conn,
+        params=[asset.upper()]
+    )
+
+    conn.close()
+
+    return df
+
+def save_prediction_to_db(
+    forecast: Dict,
+    model_name: str,
+) -> bool:
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    asset = str(forecast["asset"]).upper()
+
+    prediction_date = pd.Timestamp(
+        forecast["prediction_for_date"]
+    ).date()
+
+    cursor.execute(f"""
+        SELECT COUNT(*)
+        FROM {DB_TABLE}
+        WHERE asset = ?
+        AND prediction_for_date = ?
+    """,
+        asset,
+        prediction_date
+    )
+
+    exists = cursor.fetchone()[0]
+
+    if exists > 0:
+        conn.close()
+        return False
+
+    cursor.execute(f"""
+        INSERT INTO {DB_TABLE}
+        (
+            logged_at,
+            model_name,
+            asset,
+            last_feature_date,
+            prediction_for_date,
+            last_close,
+            pred_log_price,
+            pred_close_price,
+            pred_change_pct
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """,
+        pd.Timestamp.now(),
+        model_name,
+        asset,
+        pd.Timestamp(forecast["last_feature_date"]).date(),
+        prediction_date,
+        float(forecast["last_close"]),
+        float(forecast["pred_log_price"]),
+        float(forecast["pred_close_price"]),
+        float(forecast["pred_change_pct"])
+    )
+
+    conn.commit()
+    conn.close()
+
+    return True
 
 @dataclass
 class Artifacts:
