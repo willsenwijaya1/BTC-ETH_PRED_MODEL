@@ -1,5 +1,5 @@
 from __future__ import annotations
-import pyodbc
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,6 +7,8 @@ from typing import Dict, List, Tuple
 from typing import Any
 from xgboost import XGBRegressor
 
+import streamlit as st
+from supabase import create_client
 import joblib
 import time
 import numpy as np
@@ -36,6 +38,15 @@ ASSET_PREFIX = {
     "btc": "Btc",
 }
 
+SUPABASE_TABLE = "btc_eth_prediction_history"
+
+def get_supabase():
+
+    return create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_KEY"]
+    )
+
 PREDICTION_LOG_COLUMNS = [
     "logged_at",
     "model_name",
@@ -57,84 +68,84 @@ def get_db_connection():
         r"Trusted_Connection=yes;"
     )
     
-def load_prediction_history_db(asset: str) -> pd.DataFrame:
-    conn = get_db_connection()
+def load_prediction_history_db(
+    asset: str
+) -> pd.DataFrame:
 
-    query = f"""
-        SELECT *
-        FROM {DB_TABLE}
-        WHERE asset = ?
-        ORDER BY prediction_for_date DESC
-    """
+    supabase = get_supabase()
 
-    df = pd.read_sql(
-        query,
-        conn,
-        params=[asset.upper()]
+    result = (
+        supabase.table(
+            SUPABASE_TABLE
+        )
+        .select("*")
+        .eq(
+            "asset",
+            asset.upper()
+        )
+        .order(
+            "prediction_for_date",
+            desc=True
+        )
+        .execute()
     )
 
-    conn.close()
+    if not result.data:
+        return pd.DataFrame()
 
-    return df
-
+    return pd.DataFrame(result.data)
 def save_prediction_to_db(
     forecast: Dict,
     model_name: str,
 ) -> bool:
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    supabase = get_supabase()
 
-    asset = str(forecast["asset"]).upper()
+    asset = str(
+        forecast["asset"]
+    ).upper()
 
-    prediction_date = pd.Timestamp(
-        forecast["prediction_for_date"]
-    ).date()
-
-    cursor.execute(f"""
-        SELECT COUNT(*)
-        FROM {DB_TABLE}
-        WHERE asset = ?
-        AND prediction_for_date = ?
-    """,
-        asset,
-        prediction_date
+    prediction_date = str(
+        pd.Timestamp(
+            forecast["prediction_for_date"]
+        ).date()
     )
 
-    exists = cursor.fetchone()[0]
+    existing = (
+        supabase.table(SUPABASE_TABLE)
+        .select("id")
+        .eq("asset", asset)
+        .eq(
+            "prediction_for_date",
+            prediction_date
+        )
+        .execute()
+    )
 
-    if exists > 0:
-        conn.close()
+    if len(existing.data) > 0:
         return False
 
-    cursor.execute(f"""
-        INSERT INTO {DB_TABLE}
-        (
-            logged_at,
-            model_name,
-            asset,
-            last_feature_date,
-            prediction_for_date,
-            last_close,
-            pred_log_price,
-            pred_close_price,
-            pred_change_pct
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-        pd.Timestamp.now(),
-        model_name,
-        asset,
-        pd.Timestamp(forecast["last_feature_date"]).date(),
-        prediction_date,
-        float(forecast["last_close"]),
-        float(forecast["pred_log_price"]),
-        float(forecast["pred_close_price"]),
-        float(forecast["pred_change_pct"])
-    )
-
-    conn.commit()
-    conn.close()
+    supabase.table(
+        SUPABASE_TABLE
+    ).insert({
+        "logged_at": pd.Timestamp.now().isoformat(),
+        "model_name": model_name,
+        "asset": asset,
+        "last_feature_date":
+            str(pd.Timestamp(
+                forecast["last_feature_date"]
+            ).date()),
+        "prediction_for_date":
+            prediction_date,
+        "last_close":
+            float(forecast["last_close"]),
+        "pred_log_price":
+            float(forecast["pred_log_price"]),
+        "pred_close_price":
+            float(forecast["pred_close_price"]),
+        "pred_change_pct":
+            float(forecast["pred_change_pct"]),
+    }).execute()
 
     return True
 
