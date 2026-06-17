@@ -220,12 +220,17 @@ with tab2:
             fig_history,
             use_container_width=True
         )
-
+        display_df = history_df.drop(
+            columns=[
+                "id",
+                "actual_close_price",
+                "prediction_error_pct"
+            ],
+            errors="ignore"
+        )
+        
         st.dataframe(
-            history_df.sort_values(
-                "logged_at",
-                ascending=False
-            ),
+            display_df.sort_values("logged_at", ascending=False),
             use_container_width=True,
         )
 
