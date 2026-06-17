@@ -195,39 +195,44 @@ with tab2:
 
     if not history_df.empty:
 
-    history_chart = history_df.sort_values(
-        "prediction_for_date"
-    )
-
-    fig_history = go.Figure()
-
-    fig_history.add_trace(
-        go.Scatter(
-            x=history_chart["prediction_for_date"],
-            y=history_chart["pred_close_price"],
-            mode="lines+markers",
-            name=f"{asset_label} Historical Forecast"
+        history_chart = history_df.sort_values(
+            "prediction_for_date"
         )
-    )
 
-    fig_history.update_layout(
-        height=400,
-        xaxis_title="Prediction Date",
-        yaxis_title="Predicted Close Price (USD)"
-    )
+        fig_history = go.Figure()
 
-    st.plotly_chart(
-        fig_history,
-        use_container_width=True
-    )
+        fig_history.add_trace(
+            go.Scatter(
+                x=history_chart["prediction_for_date"],
+                y=history_chart["pred_close_price"],
+                mode="lines+markers",
+                name=f"{asset_label} Historical Forecast"
+            )
+        )
 
-    st.dataframe(
-        history_df.sort_values("logged_at", ascending=False),
-        use_container_width=True,
-    )
+        fig_history.update_layout(
+            height=400,
+            xaxis_title="Prediction Date",
+            yaxis_title="Predicted Close Price (USD)"
+        )
 
-else:
-    st.info(f"Belum ada histori prediksi {asset_label}.")
+        st.plotly_chart(
+            fig_history,
+            use_container_width=True
+        )
+
+        st.dataframe(
+            history_df.sort_values(
+                "logged_at",
+                ascending=False
+            ),
+            use_container_width=True,
+        )
+
+    else:
+        st.info(
+            f"Belum ada histori prediksi {asset_label}."
+        )
 
 with tab3:
     st.subheader(f"Informasi model {asset_label}")
