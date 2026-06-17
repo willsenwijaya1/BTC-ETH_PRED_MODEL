@@ -58,7 +58,7 @@ PREDICTION_LOG_COLUMNS = [
     "pred_close_price",
     "pred_change_pct",
 ]
-DB_TABLE = "BTC_ETH_PREDICTION_HISTORY"
+DB_TABLE = "btc_eth_prediction_history"
 
 def get_db_connection():
     return pyodbc.connect(
