@@ -99,7 +99,7 @@ try:
     forecast = predict_next_close_from_latest(
         artifacts,
         df_features,
-        asset=asset
+        asset=asset,
         save_prediction_to_db(
         forecast,
         artifacts.metadata.get(
