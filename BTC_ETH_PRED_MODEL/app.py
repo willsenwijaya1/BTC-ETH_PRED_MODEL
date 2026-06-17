@@ -100,7 +100,13 @@ try:
         artifacts,
         df_features,
         asset=asset
+        save_prediction_to_db(
+        forecast,
+        artifacts.metadata.get(
+            "model_name",
+            f"Model-{asset.upper()}"
     )
+)
 
     save_prediction_to_db(
         forecast,
