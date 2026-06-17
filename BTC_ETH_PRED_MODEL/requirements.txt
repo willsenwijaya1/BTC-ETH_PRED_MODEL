@@ -8,3 +8,4 @@ yfinance
 ta
 joblib
 xgboost
+pyodbc
