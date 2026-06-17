@@ -9,13 +9,12 @@ import streamlit as st
 from src.pipeline import (
     FEATURE_COLUMNS,
     START_DATE,
-    append_prediction_history,
     build_feature_frame,
     download_market_data,
     get_feature_columns,
-    get_prediction_log_path,
     load_artifacts,
-    load_prediction_history,
+    save_prediction_to_db,
+    load_prediction_history_db,
     predict_next_close_from_latest,
 )
 
@@ -66,8 +65,6 @@ with st.sidebar:
 
 ARTIFACTS_DIR = get_artifacts_dir(asset)
 
-PRED_LOG_PATH = get_prediction_log_path(ARTIFACTS_DIR, asset)
-
 st.title(f"{asset_label} Daily Forecast")
 
 try:
@@ -98,7 +95,21 @@ df_features = None
 
 try:
     df_features = get_latest_feature_frame(asset)
-    forecast = predict_next_close_from_latest(artifacts, df_features, asset=asset)
+
+    forecast = predict_next_close_from_latest(
+        artifacts,
+        df_features,
+        asset=asset
+    )
+
+    save_prediction_to_db(
+        forecast,
+        artifacts.metadata.get(
+            "model_name",
+            f"Model-{asset.upper()}"
+        )
+    )
+
 except Exception as exc:
     forecast_error = exc
 
@@ -175,31 +186,48 @@ with tab1:
             use_container_width=True,
         )
 
-        if st.button(f"Simpan prediksi {asset_label} ke log historis"):
-            saved = append_prediction_history(
-                log_path=PRED_LOG_PATH,
-                forecast=forecast,
-                model_name=artifacts.metadata.get("model_name", f"Model-{asset_label}"),
-            )
-            if saved:
-                st.success(f"Prediksi {asset_label} berhasil disimpan ke log historis.")
-            else:
-                st.info(f"Prediksi {asset_label} ini sudah ada di log historis.")
-    else:
-        st.info("Forecast belum tersedia.")
+
 
 with tab2:
     st.subheader(f"Histori log prediksi model {asset_label}")
 
-    history_df = load_prediction_history(PRED_LOG_PATH)
+    history_df = load_prediction_history_db(asset)
 
-    if not history_df.empty:
-        st.dataframe(
-            history_df.sort_values("logged_at", ascending=False),
-            use_container_width=True,
+if not history_df.empty:
+
+    history_chart = history_df.sort_values(
+        "prediction_for_date"
+    )
+
+    fig_history = go.Figure()
+
+    fig_history.add_trace(
+        go.Scatter(
+            x=history_chart["prediction_for_date"],
+            y=history_chart["pred_close_price"],
+            mode="lines+markers",
+            name=f"{asset_label} Historical Forecast"
         )
-    else:
-        st.info(f"Belum ada histori prediksi {asset_label}.")
+    )
+
+    fig_history.update_layout(
+        height=400,
+        xaxis_title="Prediction Date",
+        yaxis_title="Predicted Close Price (USD)"
+    )
+
+    st.plotly_chart(
+        fig_history,
+        use_container_width=True
+    )
+
+    st.dataframe(
+        history_df.sort_values("logged_at", ascending=False),
+        use_container_width=True,
+    )
+
+else:
+    st.info(f"Belum ada histori prediksi {asset_label}.")
 
 with tab3:
     st.subheader(f"Informasi model {asset_label}")
